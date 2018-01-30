@@ -13,3 +13,9 @@ type Analyzer interface {
 	Analyze(respParsers []ParseResponse, resp base.Response) ([]base.Data, []error)
 }
 
+type AnalyzerPool interface {
+	Take() (Analyzer, error)
+	Return(analyzer Analyzer) error
+	Total()uint32
+	Used()uint32
+}
