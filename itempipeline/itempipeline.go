@@ -10,3 +10,6 @@ type ItemPipeline interface {
 	ProcessingNumber() uint64
 	Summary() string
 }
+
+type ProcessItem func(item base.Item) (result base.Item, err error)
+
