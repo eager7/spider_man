@@ -3,64 +3,69 @@ package analyzer
 import (
 	"errors"
 	"fmt"
-	"log"
-	"net/http"
+	//"logging"
 	"net/url"
-
-	"../base"
-	dl "../downloader"
+	base "../base"
+	mdw "../middleware"
+	"github.com/eager7/go/mlog"
 )
 
-var analyzerIdgenerator dl.IdGenerator = dl.NewIdGenerator()
+// 日志记录器。
+//var logger logging.Logger = base.NewLogger()
 
-type ParseResponse func(httpResp *http.Response, respDepth uint32) ([]base.Data, []error)
+// ID生成器。
+var analyzerIdGenerator mdw.IdGenerator = mdw.NewIdGenerator()
 
-type Analyzer interface {
-	Id() uint32
-	Analyze(respParsers []ParseResponse, resp base.Response) ([]base.Data, []error)
-}
-
-type AnalyzerPool interface {
-	Take() (Analyzer, error)
-	Return(analyzer Analyzer) error
-	Total()uint32
-	Used()uint32
-}
-
-type myAnalyzer struct {
-	id uint32
-}
-
+// 生成并返回ID。
 func genAnalyzerId() uint32 {
-	return analyzerIdgenerator.GetUint32()
+	return analyzerIdGenerator.GetUint32()
 }
 
+// 分析器的接口类型。
+type Analyzer interface {
+	Id() uint32 // 获得ID。
+	Analyze(
+		respParsers []ParseResponse,
+		resp base.Response) ([]base.Data, []error) // 根据规则分析响应并返回请求和条目。
+}
+
+// 创建分析器。
 func NewAnalyzer() Analyzer {
-	return &myAnalyzer{id:genAnalyzerId()}
+	return &myAnalyzer{id: genAnalyzerId()}
 }
 
-func (analyzer *myAnalyzer)Id() uint32 {
+// 分析器的实现类型。
+type myAnalyzer struct {
+	id uint32 // ID。
+}
+
+func (analyzer *myAnalyzer) Id() uint32 {
 	return analyzer.id
 }
 
-func (analyzer *myAnalyzer)Analyze(respParsers []ParseResponse, resp base.Response) (dataList []base.Data, errorList []error) {
+func (analyzer *myAnalyzer) Analyze(
+	respParsers []ParseResponse,
+	resp base.Response) (dataList []base.Data, errorList []error) {
 	if respParsers ==  nil {
 		err := errors.New("The response parser list is invalid!")
 		return nil, []error{err}
 	}
 	httpResp := resp.HttpResp()
 	if httpResp == nil {
-		err := errors.New("The http response is invalid")
+		err := errors.New("The http response is invalid!")
 		return nil, []error{err}
 	}
 	var reqUrl *url.URL = httpResp.Request.URL
-	log.Println(reqUrl)
+	//logger.Infof("Parse the response (reqUrl=%s)... \n", reqUrl)
+	mlog.Debug.Println("Parse the response (reqUrl=%s)... \n", reqUrl)
 	respDepth := resp.Depth()
+
+	// 解析HTTP响应。
 	dataList = make([]base.Data, 0)
 	errorList = make([]error, 0)
 	for i, respParser := range respParsers {
 		if respParser == nil {
-			err := errors.New(fmt.Sprintf("The document parser[%d] is invalid!", i))
+			err := errors.New(fmt.Sprintf("The document parser [%d] is invalid!", i))
 			errorList = append(errorList, err)
 			continue
 		}
